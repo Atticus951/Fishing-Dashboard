@@ -939,43 +939,79 @@
   locations.forEach(fetchWeather);
   setInterval(function() { locations.forEach(fetchWeather); }, 15 * 60 * 1000);
 
-  // Water temp fetch via NOAA buoy (Station 42036 - Gulf of Mexico)
-  // Using Open-Meteo marine API as it covers Gulf Coast water temp
+  // Water temp — NOAA CO-OPS Cedar Key station 8727520
   async function fetchWaterTemp(loc) {
     try {
-      const url = 'https://api.open-meteo.com/v1/marine?latitude=' + loc.lat + '&longitude=' + loc.lon + '&current=sea_surface_temperature&temperature_unit=fahrenheit&timezone=America%2FNew_York';
+      const url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?date=latest&station=8727520&product=water_temperature&units=english&time_zone=lst_ldt&application=fishing_dashboard&format=json';
       const res = await fetch(url);
       const data = await res.json();
-      const wt = Math.round(data.current.sea_surface_temperature);
-      document.getElementById('water-' + loc.id).textContent = '💧' + wt + '°F';
-    } catch(e) {
-      // silently fail — water temp unavailable for inland locations
-    }
-  }
-
-  // Tide direction fetch via NOAA
-  async function fetchTide(loc) {
-    try {
-      // Use NOAA tides API — Cedar Key station closest to all spots
-      const now = new Date();
-      const fmt = d => d.toISOString().slice(0,10).replace(/-/g,'');
-      const begin = fmt(now);
-      const end = fmt(new Date(now.getTime() + 7200000));
-      const url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=' + begin + '&end_date=' + end + '&station=8727520&product=water_level&datum=MLLW&time_zone=lst_ldt&units=english&application=fishing_dashboard&format=json&interval=6';
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.data && data.data.length >= 2) {
-        const latest = parseFloat(data.data[data.data.length - 1].v);
-        const prev   = parseFloat(data.data[data.data.length - 2].v);
-        const arrow  = latest > prev ? '▲ Rising' : '▼ Falling';
-        document.getElementById('tide-' + loc.id).textContent = arrow;
+      if (data.data && data.data[0]) {
+        const wt = Math.round(parseFloat(data.data[0].v));
+        document.getElementById('water-' + loc.id).textContent = '💧' + wt + '°F';
       }
     } catch(e) { }
   }
 
-  locations.forEach(fetchWaterTemp);
-  locations.forEach(fetchTide);
-  setInterval(function() { locations.forEach(fetchWaterTemp); locations.forEach(fetchTide); }, 15 * 60 * 1000);
+  // Tide direction — NOAA predictions for Cedar Key (always available)
+  async function fetchTide(loc) {
+    try {
+      const now = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      const begin = now.getFullYear() + '' + pad(now.getMonth()+1) + '' + pad(now.getDate());
+      const tomorrow = new Date(now.getTime() + 86400000);
+      const end = tomorrow.getFullYear() + '' + pad(tomorrow.getMonth()+1) + '' + pad(tomorrow.getDate());
+      const url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=' + begin + '&end_date=' + end + '&station=8727520&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=fishing_dashboard&format=json';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.predictions && data.predictions.length >= 1) {
+        // Find which tide event is next
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        let prev = null, next = null;
+        data.predictions.forEach(function(p) {
+          const parts = p.t.split(' ')[1].split(':');
+          const pMin = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+          if (pMin <= nowMin) prev = p;
+          else if (!next) next = p;
+        });
+        // If we have a prev event, determine if we're heading toward high or low
+        if (next) {
+          const arrow = next.type === 'H' ? '▲ Rising' : '▼ Falling';
+          document.getElementById('tide-' + loc.id).textContent = arrow;
+        }
+      }
+    } catch(e) { }
+  }
+
+  // Fetch once and apply to all tiles (same station for all locations)
+  async function fetchAllTidesAndTemp() {
+    await fetchWaterTemp(locations[0]); // fetch once
+    // Apply same water temp to all tiles
+    const waterEl = document.getElementById('water-ozello');
+    if (waterEl) {
+      const val = waterEl.textContent;
+      ['mangrove','shell','withlacoochee'].forEach(function(id) {
+        const el = document.getElementById('water-' + id);
+        if (el) el.textContent = val;
+      });
+    }
+    await fetchTide(locations[0]); // fetch once
+    // Apply same tide direction to all tiles
+    const tideEl = document.getElementById('tide-ozello');
+    if (tideEl) {
+      const val = tideEl.textContent;
+      ['mangrove','shell','withlacoochee'].forEach(function(id) {
+        const el = document.getElementById('tide-' + id);
+        if (el) el.textContent = val;
+      });
+    }
+  }
+
+  locations.forEach(fetchWeather);
+  fetchAllTidesAndTemp();
+  setInterval(function() {
+    locations.forEach(fetchWeather);
+    fetchAllTidesAndTemp();
+  }, 15 * 60 * 1000);
 
   // Dark / Light mode toggle
   var isDark = true;
