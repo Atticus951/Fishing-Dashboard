@@ -939,10 +939,10 @@
   locations.forEach(fetchWeather);
   setInterval(function() { locations.forEach(fetchWeather); }, 15 * 60 * 1000);
 
-  // Water temp — NOAA CO-OPS Cedar Key station 8727520
+  // Water temp — NOAA CO-OPS Crystal River station 8728690 (closer to North Ozello)
   async function fetchWaterTemp(loc) {
     try {
-      const url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?date=latest&station=8727520&product=water_temperature&units=english&time_zone=lst_ldt&application=fishing_dashboard&format=json';
+      const url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?date=latest&station=8728690&product=water_temperature&units=english&time_zone=lst_ldt&application=fishing_dashboard&format=json';
       const res = await fetch(url);
       const data = await res.json();
       if (data.data && data.data[0]) {
@@ -1061,7 +1061,7 @@
 
       // Form
       logField('Species', '<select id="lf-species" style="'+selectStyle()+'"><option>Redfish</option><option>Snook</option><option>Trout</option><option>Flounder</option><option>Sheepshead</option><option>Tarpon</option><option>Cobia</option><option>Spanish Mackerel</option><option>Shark</option><option>Other</option></select>') +
-      logField('Location', '<select id="lf-loc" style="'+selectStyle()+'"><option>North Ozello</option><option>Mangrove Point</option><option>Shell Island</option><option>Withlacoochee River</option><option>Other</option></select>') +
+      logField('GPS Coordinates', '<div style="display:flex;gap:6px;align-items:center;"><input id="lf-coords" type="text" placeholder="Fetching location..." style="'+inputStyle()+'flex:1;"><button onclick="getCoords();" style="padding:9px 12px;background:rgba(0,200,170,0.15);border:1px solid rgba(0,200,170,0.3);border-radius:10px;color:#00c8aa;font-size:13px;cursor:pointer;white-space:nowrap;">📍 Get</button></div>') +
       logRow(
         logField('Size (in)', '<input id="lf-size" type="number" placeholder="e.g. 22" style="'+inputStyle()+'">'),
         logField('Weight (lbs)', '<input id="lf-weight" type="number" placeholder="optional" style="'+inputStyle()+'">')
@@ -1075,6 +1075,32 @@
 
       '<button onclick="saveEntry();" style="width:100%;padding:14px;background:#00c8aa;border:none;border-radius:14px;color:#000;font-size:16px;font-weight:700;margin-top:8px;cursor:pointer;">💾 Save Entry</button>' +
       '</div>';
+
+    // Auto-fetch GPS as soon as form renders
+    getCoords();
+  }
+
+  function getCoords() {
+    var el = document.getElementById('lf-coords');
+    if (!el) return;
+    if (!navigator.geolocation) {
+      el.value = 'GPS not available';
+      return;
+    }
+    el.value = 'Fetching...';
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude.toFixed(5);
+        var lon = pos.coords.longitude.toFixed(5);
+        var latDir = lat >= 0 ? 'N' : 'S';
+        var lonDir = lon >= 0 ? 'E' : 'W';
+        el.value = Math.abs(lat) + '° ' + latDir + ', ' + Math.abs(lon) + '° ' + lonDir;
+      },
+      function(err) {
+        el.value = 'Location denied';
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }
 
   function selectStyle() {
@@ -1098,7 +1124,7 @@
     var entry = {
       id: Date.now(),
       species: document.getElementById('lf-species').value,
-      location: document.getElementById('lf-loc').value,
+      coords: document.getElementById('lf-coords').value,
       size: document.getElementById('lf-size').value,
       weight: document.getElementById('lf-weight').value,
       date: document.getElementById('lf-date').value,
@@ -1131,7 +1157,7 @@
           '<div style="display:flex;align-items:center;gap:8px;">' +
             '<span style="font-size:22px;">'+icon+'</span>' +
             '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
-            '<div style="font-size:11px;color:rgba(0,200,170,0.6);">'+e.location+'</div></div>' +
+            '<div style="font-size:10px;color:rgba(0,200,170,0.6);font-family:monospace;">'+( e.coords || e.location || '—')+'</div></div>' +
           '</div>' +
           '<div style="text-align:right;">' +
             '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
