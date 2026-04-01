@@ -395,8 +395,33 @@
   .fwc-row { padding: 13px 16px; }
   .fwc-row .row-name { font-size: 15px; }
 
-  /* Google Earth tile */
-  .tile-earth {
+  /* Google Earth fly-to popup */
+  .fly-popup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+
+  .fly-popup {
+    background: #0d1a1f;
+    border: 1px solid rgba(0,200,170,0.3);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+  }
+
+  .fly-popup-icon { font-size: 40px; margin-bottom: 12px; }
+  .fly-popup-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .fly-popup-coords { font-size: 11px; color: rgba(0,200,170,0.7); font-family: monospace; margin-bottom: 22px; line-height: 1.5; }
+  .fly-popup-yes { width: 100%; padding: 13px; background: #00c8aa; border: none; border-radius: 12px; color: #000; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+  .fly-popup-no { width: 100%; padding: 12px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 15px; font-weight: 500; cursor: pointer; }
     grid-column: span 2;
     flex-direction: row;
     align-items: center;
@@ -1152,12 +1177,17 @@
       var icon = fish[e.species] || '🐠';
       var sizeStr = e.size ? e.size+'"' : '';
       var weightStr = e.weight ? ' · '+e.weight+'lb' : '';
+      var hasCoords = e.coords && e.coords !== 'Location denied' && e.coords !== 'GPS not available' && e.coords !== 'Fetching...';
+      var coordsHtml = hasCoords
+        ? '<div onclick="flyToSpot(\''+e.coords+'\');" style="font-size:10px;color:rgba(0,200,170,0.8);font-family:monospace;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">📍 '+e.coords+'</div>'
+        : '<div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:monospace;">'+(e.coords || e.location || '—')+'</div>';
+
       html += '<div style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
             '<span style="font-size:22px;">'+icon+'</span>' +
             '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
-            '<div style="font-size:10px;color:rgba(0,200,170,0.6);font-family:monospace;">'+( e.coords || e.location || '—')+'</div></div>' +
+            coordsHtml+'</div>' +
           '</div>' +
           '<div style="text-align:right;">' +
             '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
@@ -1182,6 +1212,28 @@
     renderEntries(logs, document.getElementById('logContent'));
   }
 
+  // Google Earth fly-to popup
+  function flyToSpot(coords) {
+    document.getElementById('flyCoords').textContent = coords;
+    document.getElementById('flyPopup').style.display = 'flex';
+  }
+
+  function closeFlyPopup() {
+    document.getElementById('flyPopup').style.display = 'none';
+  }
+
+  function confirmFlyTo() {
+    var coords = document.getElementById('flyCoords').textContent;
+    // Parse "28.92360° N, 82.63840° W" into decimal lat/lon
+    var parts = coords.replace(/°/g,'').split(',');
+    var latParts = parts[0].trim().split(' ');
+    var lonParts = parts[1].trim().split(' ');
+    var lat = parseFloat(latParts[0]) * (latParts[1] === 'S' ? -1 : 1);
+    var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
+    closeFlyPopup();
+    window.location.href = 'googleearth://?ll=' + lat + ',' + lon + '&z=16';
+  }
+
   // Init log on open
   var origOpenPicker = openPicker;
   openPicker = function(name) {
@@ -1193,6 +1245,17 @@
   saveLogs(getLogs());
 </script>
 
+</div>
+
+<!-- GOOGLE EARTH FLY-TO POPUP -->
+<div class="fly-popup-overlay" id="flyPopup">
+  <div class="fly-popup">
+    <div class="fly-popup-icon">🌍</div>
+    <div class="fly-popup-title">Fly here in Google Earth?</div>
+    <div class="fly-popup-coords" id="flyCoords"></div>
+    <button class="fly-popup-yes" onclick="confirmFlyTo()">🛩️ Open Google Earth</button>
+    <button class="fly-popup-no" onclick="closeFlyPopup()">Cancel</button>
+  </div>
 </div>
 
 </body>
