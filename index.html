@@ -1182,36 +1182,80 @@
         ? '<div style="font-size:10px;color:rgba(0,200,170,0.8);font-family:monospace;">📍 '+e.coords+'</div>'
         : '<div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:monospace;">'+(e.coords || e.location || '—')+'</div>';
 
-      var cardClick = hasCoords ? 'class="fly-coord-link" data-coords="'+e.coords+'" data-species="'+e.species+'"' : '';
+      var cardClick = hasCoords ? 'data-coords="'+e.coords+'" data-species="'+e.species+'"' : '';
 
-      html += '<div '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;margin-bottom:8px;'+(hasCoords ? 'cursor:pointer;' : '')+'">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-            '<span style="font-size:22px;">'+icon+'</span>' +
-            '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
-            coordsHtml+'</div>' +
-          '</div>' +
-          '<div style="text-align:right;">' +
-            '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
-            '<button onclick="deleteEntry('+e.id+');" style="font-size:10px;color:rgba(255,80,80,0.6);background:none;border:none;cursor:pointer;padding:0;margin-top:2px;">delete</button>' +
-          '</div>' +
+      html += '<div class="swipe-container" style="margin-bottom:8px;border-radius:14px;overflow:hidden;position:relative;">' +
+        // Red delete button behind
+        '<div class="swipe-delete-btn" onclick="deleteEntry('+e.id+');" style="position:absolute;right:0;top:0;bottom:0;width:80px;background:#ff3b30;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0 14px 14px 0;">' +
+          '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">🗑️<br>Delete</div>' +
         '</div>' +
-        '<div style="font-size:11px;color:rgba(255,255,255,0.35);display:flex;gap:10px;flex-wrap:wrap;">' +
-          '<span>🕐 '+e.date+'</span>' +
-          (e.waterTemp ? '<span>💧'+e.waterTemp+'</span>' : '') +
-          (e.tide ? '<span>'+e.tide+'</span>' : '') +
+        // Swipeable card
+        '<div class="swipe-card '+(hasCoords ? 'fly-coord-link' : '')+'" '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;position:relative;'+(hasCoords ? 'cursor:pointer;' : '')+'transition:transform 0.25s ease;touch-action:pan-y;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span style="font-size:22px;">'+icon+'</span>' +
+              '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
+              coordsHtml+'</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;color:rgba(255,255,255,0.35);display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<span>🕐 '+e.date+'</span>' +
+            (e.waterTemp ? '<span>💧'+e.waterTemp+'</span>' : '') +
+            (e.tide ? '<span>'+e.tide+'</span>' : '') +
+          '</div>' +
+          (e.notes ? '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-style:italic;">'+e.notes+'</div>' : '') +
         '</div>' +
-        (e.notes ? '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-style:italic;">'+e.notes+'</div>' : '') +
       '</div>';
     });
 
     el.innerHTML = html;
 
-    // Use event delegation so clicks on coord links work reliably
+    // Swipe to delete touch handling
+    el.querySelectorAll('.swipe-container').forEach(function(container) {
+      var card = container.querySelector('.swipe-card');
+      var startX = 0;
+      var currentX = 0;
+      var swiped = false;
+
+      card.addEventListener('touchstart', function(e) {
+        startX = e.touches[0].clientX;
+        currentX = 0;
+        card.style.transition = 'none';
+      }, { passive: true });
+
+      card.addEventListener('touchmove', function(e) {
+        currentX = e.touches[0].clientX - startX;
+        if (currentX < 0) {
+          var move = Math.max(currentX, -80);
+          card.style.transform = 'translateX(' + move + 'px)';
+        } else if (swiped) {
+          var move = Math.min(currentX - 80, 0);
+          card.style.transform = 'translateX(' + move + 'px)';
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', function() {
+        card.style.transition = 'transform 0.25s ease';
+        if (currentX < -40) {
+          card.style.transform = 'translateX(-80px)';
+          swiped = true;
+        } else {
+          card.style.transform = 'translateX(0)';
+          swiped = false;
+        }
+      });
+    });
+
+    // Tap to fly handler
     el.querySelectorAll('.fly-coord-link').forEach(function(link) {
       link.addEventListener('click', function(e) {
-        // Don't trigger if delete button was clicked
-        if (e.target.tagName === 'BUTTON') return;
+        var card = this.closest ? this : this;
+        // Only trigger if not swiped open
+        var transform = card.style.transform;
+        if (transform && transform !== 'translateX(0px)' && transform !== '') return;
         flyToSpot(this.getAttribute('data-coords'), this.getAttribute('data-species'));
       });
     });
@@ -1243,7 +1287,8 @@
     var lat = parseFloat(latParts[0]) * (latParts[1] === 'S' ? -1 : 1);
     var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
     closeFlyPopup();
-    window.location.href = 'googleearth://?ll=' + lat + ',' + lon + '&z=16&q=' + encodeURIComponent(label) + '&t=h';
+    // Google Maps URL — drops a labeled pin at exact coordinates
+    window.location.href = 'comgooglemaps://?q=' + encodeURIComponent(label) + '&center=' + lat + ',' + lon + '&zoom=17&maptype=satellite';
   }
 
   // Init log on open
@@ -1262,11 +1307,11 @@
 <!-- GOOGLE EARTH FLY-TO POPUP -->
 <div class="fly-popup-overlay" id="flyPopup">
   <div class="fly-popup">
-    <div class="fly-popup-icon">🌍</div>
-    <div class="fly-popup-title">Fly here in Google Earth?</div>
+    <div class="fly-popup-icon">📍</div>
+    <div class="fly-popup-title">Drop a pin in Google Maps?</div>
     <div class="fly-popup-coords" id="flyCoords"></div>
     <span id="flyLabel" style="display:none;"></span>
-    <button class="fly-popup-yes" onclick="confirmFlyTo()">🛩️ Open Google Earth</button>
+    <button class="fly-popup-yes" onclick="confirmFlyTo()">🗺️ Open Google Maps</button>
     <button class="fly-popup-no" onclick="closeFlyPopup()">Cancel</button>
   </div>
 </div>
