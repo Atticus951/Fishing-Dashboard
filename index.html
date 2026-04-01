@@ -1260,7 +1260,7 @@
     var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
     closeFlyPopup();
     // This URL format forces a pin drop with label in Google Maps
-    window.open('https://maps.google.com/?q=' + encodeURIComponent(label) + '&sll=' + lat + ',' + lon + '&near=' + lat + ',' + lon, '_blank');
+    window.open('https://maps.google.com/?q=' + lat + ',' + lon, '_blank');
   }
 
   // Init log on open
