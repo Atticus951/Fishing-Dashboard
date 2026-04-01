@@ -1179,7 +1179,7 @@
       var weightStr = e.weight ? ' · '+e.weight+'lb' : '';
       var hasCoords = e.coords && e.coords !== 'Location denied' && e.coords !== 'GPS not available' && e.coords !== 'Fetching...';
       var coordsHtml = hasCoords
-        ? '<div onclick="flyToSpot(\''+e.coords+'\');" style="font-size:10px;color:rgba(0,200,170,0.8);font-family:monospace;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">📍 '+e.coords+'</div>'
+        ? '<div class="fly-coord-link" data-coords="'+e.coords+'" style="font-size:10px;color:rgba(0,200,170,0.8);font-family:monospace;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">📍 '+e.coords+'</div>'
         : '<div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:monospace;">'+(e.coords || e.location || '—')+'</div>';
 
       html += '<div style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;margin-bottom:8px;">' +
@@ -1204,6 +1204,13 @@
     });
 
     el.innerHTML = html;
+
+    // Use event delegation so clicks on coord links work reliably
+    el.querySelectorAll('.fly-coord-link').forEach(function(link) {
+      link.addEventListener('click', function() {
+        flyToSpot(this.getAttribute('data-coords'));
+      });
+    });
   }
 
   function deleteEntry(id) {
