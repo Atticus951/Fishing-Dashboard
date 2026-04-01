@@ -1287,8 +1287,8 @@
     var lat = parseFloat(latParts[0]) * (latParts[1] === 'S' ? -1 : 1);
     var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
     closeFlyPopup();
-    // Google Maps URL — drops a labeled pin at exact coordinates
-    window.location.href = 'comgooglemaps://?q=' + encodeURIComponent(label) + '&center=' + lat + ',' + lon + '&zoom=17&maptype=satellite';
+    // Open Google Maps web URL with pin at exact coordinates — works on all devices
+    window.open('https://maps.google.com/?q=' + lat + ',' + lon + '&ll=' + lat + ',' + lon + '&z=17', '_blank');
   }
 
   // Init log on open
