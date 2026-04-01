@@ -1192,83 +1192,36 @@
 
       var cardClick = hasCoords ? 'data-coords="'+e.coords+'" data-species="'+e.species+'"' : '';
 
-      html += '<div class="swipe-container" style="margin-bottom:8px;border-radius:14px;overflow:hidden;position:relative;">' +
-        // Action buttons behind — edit (blue) + delete (red)
-        '<div style="position:absolute;right:0;top:0;bottom:0;width:160px;display:flex;">' +
-          '<div onclick="editEntry('+e.id+');" style="width:80px;background:#0a84ff;display:flex;align-items:center;justify-content:center;cursor:pointer;">' +
-            '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">✏️<br>Edit</div>' +
+      html += '<div class="'+(hasCoords ? 'fly-coord-link' : '')+'" '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;margin-bottom:8px;position:relative;'+(hasCoords ? 'cursor:pointer;' : '')+'">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex:1;">' +
+            '<span style="font-size:22px;">'+icon+'</span>' +
+            '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
+            coordsHtml+'</div>' +
           '</div>' +
-          '<div class="swipe-delete-btn" onclick="deleteEntry('+e.id+');" style="width:80px;background:#ff3b30;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0 14px 14px 0;">' +
-            '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">🗑️<br>Delete</div>' +
-          '</div>' +
-        '</div>' +
-        // Swipeable card
-        '<div class="swipe-card '+(hasCoords ? 'fly-coord-link' : '')+'" '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;position:relative;'+(hasCoords ? 'cursor:pointer;' : '')+'transition:transform 0.25s ease;touch-action:pan-y;">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-            '<div style="display:flex;align-items:center;gap:8px;">' +
-              '<span style="font-size:22px;">'+icon+'</span>' +
-              '<div><div style="font-size:15px;font-weight:700;color:#fff;">'+e.species+'</div>' +
-              coordsHtml+'</div>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-              '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">' +
+            '<div style="font-size:14px;font-weight:600;color:#00c8aa;">'+sizeStr+weightStr+'</div>' +
+            '<div style="display:flex;gap:6px;">' +
+              '<button onclick="event.stopPropagation();editEntry('+e.id+');" style="padding:4px 10px;background:rgba(10,132,255,0.15);border:1px solid rgba(10,132,255,0.35);border-radius:8px;color:#0a84ff;font-size:11px;font-weight:600;cursor:pointer;">✏️ Edit</button>' +
+              '<button onclick="event.stopPropagation();deleteEntry('+e.id+');" style="padding:4px 10px;background:rgba(255,59,48,0.12);border:1px solid rgba(255,59,48,0.3);border-radius:8px;color:#ff3b30;font-size:11px;font-weight:600;cursor:pointer;">🗑️</button>' +
             '</div>' +
           '</div>' +
-          '<div style="font-size:11px;color:rgba(255,255,255,0.35);display:flex;gap:10px;flex-wrap:wrap;">' +
-            '<span>🕐 '+e.date+'</span>' +
-            (e.waterTemp ? '<span>💧'+e.waterTemp+'</span>' : '') +
-            (e.tide ? '<span>'+e.tide+'</span>' : '') +
-          '</div>' +
-          (e.notes ? '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-style:italic;">'+e.notes+'</div>' : '') +
         '</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,0.35);display:flex;gap:10px;flex-wrap:wrap;">' +
+          '<span>🕐 '+e.date+'</span>' +
+          (e.waterTemp ? '<span>💧'+e.waterTemp+'</span>' : '') +
+          (e.tide ? '<span>'+e.tide+'</span>' : '') +
+        '</div>' +
+        (e.notes ? '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-style:italic;">'+e.notes+'</div>' : '') +
       '</div>';
     });
 
     el.innerHTML = html;
 
-    // Swipe to delete touch handling
-    el.querySelectorAll('.swipe-container').forEach(function(container) {
-      var card = container.querySelector('.swipe-card');
-      var startX = 0;
-      var currentX = 0;
-      var swiped = false;
-
-      card.addEventListener('touchstart', function(e) {
-        startX = e.touches[0].clientX;
-        currentX = 0;
-        card.style.transition = 'none';
-      }, { passive: true });
-
-      card.addEventListener('touchmove', function(e) {
-        currentX = e.touches[0].clientX - startX;
-        if (currentX < 0) {
-          var move = Math.max(currentX, -160);
-          card.style.transform = 'translateX(' + move + 'px)';
-        } else if (swiped) {
-          var move = Math.min(currentX - 160, 0);
-          card.style.transform = 'translateX(' + move + 'px)';
-        }
-      }, { passive: true });
-
-      card.addEventListener('touchend', function() {
-        card.style.transition = 'transform 0.25s ease';
-        if (currentX < -60) {
-          card.style.transform = 'translateX(-160px)';
-          swiped = true;
-        } else {
-          card.style.transform = 'translateX(0)';
-          swiped = false;
-        }
-      });
-    });
-
     // Tap to fly handler
     el.querySelectorAll('.fly-coord-link').forEach(function(link) {
       link.addEventListener('click', function(e) {
-        var card = this.closest ? this : this;
-        // Only trigger if not swiped open
-        var transform = card.style.transform;
-        if (transform && transform !== 'translateX(0px)' && transform !== '') return;
+        if (e.target.tagName === 'BUTTON') return;
         flyToSpot(this.getAttribute('data-coords'), this.getAttribute('data-species'));
       });
     });
