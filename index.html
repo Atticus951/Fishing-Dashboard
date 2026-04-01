@@ -1068,41 +1068,43 @@
     if (logView === 'entries') {
       renderEntries(logs, el);
     } else {
-      renderForm(el);
+      renderForm(el, editId ? getLogs().find(function(e){ return e.id === editId; }) : null);
     }
   }
 
-  function renderForm(el) {
+  function renderForm(el, existing) {
     var now = new Date();
-    var dateStr = now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-    var timeStr = now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-    var waterTemp = document.getElementById('water-ozello') ? document.getElementById('water-ozello').textContent.replace('💧','') : '--';
-    var tideDir = document.getElementById('tide-ozello') ? document.getElementById('tide-ozello').textContent : '--';
+    var dateStr = existing ? existing.date : now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) + ' ' + now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+    var waterTemp = existing ? existing.waterTemp : (document.getElementById('water-ozello') ? document.getElementById('water-ozello').textContent.replace('💧','') : '--');
+    var tideDir = existing ? existing.tide : (document.getElementById('tide-ozello') ? document.getElementById('tide-ozello').textContent : '--');
+    var isEdit = !!existing;
+
+    var speciesOpts = ['Redfish','Snook','Trout','Flounder','Sheepshead','Tarpon','Cobia','Spanish Mackerel','Shark','Other'];
+    var speciesSelect = '<select id="lf-species" style="'+selectStyle()+'">' +
+      speciesOpts.map(function(s){ return '<option'+(existing && existing.species===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+      '</select>';
 
     el.innerHTML = '<div style="padding:4px 0 8px;">' +
-
-      // View entries button
-      '<button onclick="logView=\'entries\';renderLog();" style="width:100%;padding:10px;background:rgba(0,200,170,0.1);border:1px solid rgba(0,200,170,0.25);border-radius:12px;color:#00c8aa;font-size:14px;font-weight:600;margin-bottom:14px;cursor:pointer;">📋 View Past Entries</button>' +
-
-      // Form
-      logField('Species', '<select id="lf-species" style="'+selectStyle()+'"><option>Redfish</option><option>Snook</option><option>Trout</option><option>Flounder</option><option>Sheepshead</option><option>Tarpon</option><option>Cobia</option><option>Spanish Mackerel</option><option>Shark</option><option>Other</option></select>') +
-      logField('GPS Coordinates', '<div style="display:flex;gap:6px;align-items:center;"><input id="lf-coords" type="text" placeholder="Fetching location..." style="'+inputStyle()+'flex:1;"><button onclick="getCoords();" style="padding:9px 12px;background:rgba(0,200,170,0.15);border:1px solid rgba(0,200,170,0.3);border-radius:10px;color:#00c8aa;font-size:13px;cursor:pointer;white-space:nowrap;">📍 Get</button></div>') +
+      '<button onclick="editId=null;logView=\'entries\';renderLog();" style="width:100%;padding:10px;background:rgba(0,200,170,0.1);border:1px solid rgba(0,200,170,0.25);border-radius:12px;color:#00c8aa;font-size:14px;font-weight:600;margin-bottom:14px;cursor:pointer;">📋 View Past Entries</button>' +
+      (isEdit ? '<div style="text-align:center;font-size:12px;color:rgba(0,200,170,0.6);margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;">✏️ Editing Entry</div>' : '') +
+      logField('Species', speciesSelect) +
+      logField('GPS Coordinates', '<div style="display:flex;gap:6px;align-items:center;"><input id="lf-coords" type="text" value="'+(existing ? existing.coords || '' : '')+'" placeholder="Fetching location..." style="'+inputStyle()+'flex:1;"><button onclick="getCoords();" style="padding:9px 12px;background:rgba(0,200,170,0.15);border:1px solid rgba(0,200,170,0.3);border-radius:10px;color:#00c8aa;font-size:13px;cursor:pointer;white-space:nowrap;">📍 Get</button></div>') +
       logRow(
-        logField('Size (in)', '<input id="lf-size" type="number" placeholder="e.g. 22" style="'+inputStyle()+'">'),
-        logField('Weight (lbs)', '<input id="lf-weight" type="number" placeholder="optional" style="'+inputStyle()+'">')
+        logField('Size (in)', '<input id="lf-size" type="number" value="'+(existing ? existing.size || '' : '')+'" placeholder="e.g. 22" style="'+inputStyle()+'">'),
+        logField('Weight (lbs)', '<input id="lf-weight" type="number" value="'+(existing ? existing.weight || '' : '')+'" placeholder="optional" style="'+inputStyle()+'">')
       ) +
-      logField('Date & Time', '<input id="lf-date" type="text" value="'+dateStr+' '+timeStr+'" style="'+inputStyle()+'">') +
+      logField('Date & Time', '<input id="lf-date" type="text" value="'+dateStr+'" style="'+inputStyle()+'">') +
       logRow(
         logField('Water Temp', '<input id="lf-wtemp" type="text" value="'+waterTemp+'" style="'+inputStyle()+'">'),
         logField('Tide', '<input id="lf-tide" type="text" value="'+tideDir+'" style="'+inputStyle()+'">')
       ) +
-      logField('Notes', '<textarea id="lf-notes" placeholder="Bait, conditions, spot details..." style="'+inputStyle()+'height:64px;resize:none;"></textarea>') +
-
-      '<button onclick="saveEntry();" style="width:100%;padding:14px;background:#00c8aa;border:none;border-radius:14px;color:#000;font-size:16px;font-weight:700;margin-top:8px;cursor:pointer;">💾 Save Entry</button>' +
+      logField('Notes', '<textarea id="lf-notes" placeholder="Bait, conditions, spot details..." style="'+inputStyle()+'height:64px;resize:none;">'+(existing ? existing.notes || '' : '')+'</textarea>') +
+      '<button onclick="saveEntry();" style="width:100%;padding:14px;background:#00c8aa;border:none;border-radius:14px;color:#000;font-size:16px;font-weight:700;margin-top:8px;cursor:pointer;">'+(isEdit ? '✏️ Update Entry' : '💾 Save Entry')+'</button>' +
+      (isEdit ? '<button onclick="editId=null;logView=\'form\';renderLog();" style="width:100%;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:rgba(255,255,255,0.6);font-size:14px;margin-top:8px;cursor:pointer;">Cancel Edit</button>' : '') +
       '</div>';
 
-    // Auto-fetch GPS as soon as form renders
-    getCoords();
+    // Only auto-fetch GPS for new entries
+    if (!isEdit) getCoords();
   }
 
   function getCoords() {
@@ -1147,7 +1149,7 @@
   function saveEntry() {
     var logs = getLogs();
     var entry = {
-      id: Date.now(),
+      id: editId || Date.now(),
       species: document.getElementById('lf-species').value,
       coords: document.getElementById('lf-coords').value,
       size: document.getElementById('lf-size').value,
@@ -1157,7 +1159,13 @@
       tide: document.getElementById('lf-tide').value,
       notes: document.getElementById('lf-notes').value,
     };
-    logs.unshift(entry);
+    if (editId) {
+      // Replace existing entry
+      logs = logs.map(function(e) { return e.id === editId ? entry : e; });
+    } else {
+      logs.unshift(entry);
+    }
+    editId = null;
     saveLogs(logs);
     logView = 'entries';
     renderLog();
@@ -1185,9 +1193,14 @@
       var cardClick = hasCoords ? 'data-coords="'+e.coords+'" data-species="'+e.species+'"' : '';
 
       html += '<div class="swipe-container" style="margin-bottom:8px;border-radius:14px;overflow:hidden;position:relative;">' +
-        // Red delete button behind
-        '<div class="swipe-delete-btn" onclick="deleteEntry('+e.id+');" style="position:absolute;right:0;top:0;bottom:0;width:80px;background:#ff3b30;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0 14px 14px 0;">' +
-          '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">🗑️<br>Delete</div>' +
+        // Action buttons behind — edit (blue) + delete (red)
+        '<div style="position:absolute;right:0;top:0;bottom:0;width:160px;display:flex;">' +
+          '<div onclick="editEntry('+e.id+');" style="width:80px;background:#0a84ff;display:flex;align-items:center;justify-content:center;cursor:pointer;">' +
+            '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">✏️<br>Edit</div>' +
+          '</div>' +
+          '<div class="swipe-delete-btn" onclick="deleteEntry('+e.id+');" style="width:80px;background:#ff3b30;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0 14px 14px 0;">' +
+            '<div style="color:#fff;font-size:13px;font-weight:700;text-align:center;">🗑️<br>Delete</div>' +
+          '</div>' +
         '</div>' +
         // Swipeable card
         '<div class="swipe-card '+(hasCoords ? 'fly-coord-link' : '')+'" '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;position:relative;'+(hasCoords ? 'cursor:pointer;' : '')+'transition:transform 0.25s ease;touch-action:pan-y;">' +
@@ -1229,18 +1242,18 @@
       card.addEventListener('touchmove', function(e) {
         currentX = e.touches[0].clientX - startX;
         if (currentX < 0) {
-          var move = Math.max(currentX, -80);
+          var move = Math.max(currentX, -160);
           card.style.transform = 'translateX(' + move + 'px)';
         } else if (swiped) {
-          var move = Math.min(currentX - 80, 0);
+          var move = Math.min(currentX - 160, 0);
           card.style.transform = 'translateX(' + move + 'px)';
         }
       }, { passive: true });
 
       card.addEventListener('touchend', function() {
         card.style.transition = 'transform 0.25s ease';
-        if (currentX < -40) {
-          card.style.transform = 'translateX(-80px)';
+        if (currentX < -60) {
+          card.style.transform = 'translateX(-160px)';
           swiped = true;
         } else {
           card.style.transform = 'translateX(0)';
@@ -1267,6 +1280,12 @@
     renderEntries(logs, document.getElementById('logContent'));
   }
 
+  function editEntry(id) {
+    editId = id;
+    logView = 'form';
+    renderLog();
+  }
+
   // Google Earth fly-to popup
   function flyToSpot(coords, species) {
     document.getElementById('flyCoords').textContent = coords;
@@ -1287,8 +1306,8 @@
     var lat = parseFloat(latParts[0]) * (latParts[1] === 'S' ? -1 : 1);
     var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
     closeFlyPopup();
-    // Open Google Maps web URL with pin at exact coordinates — works on all devices
-    window.open('https://maps.google.com/?q=' + lat + ',' + lon + '&ll=' + lat + ',' + lon + '&z=17', '_blank');
+    // This URL format forces a pin drop with label in Google Maps
+    window.open('https://maps.google.com/?q=' + encodeURIComponent(label) + '&sll=' + lat + ',' + lon + '&near=' + lat + ',' + lon, '_blank');
   }
 
   // Init log on open
