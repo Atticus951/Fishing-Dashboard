@@ -1182,7 +1182,7 @@
         ? '<div style="font-size:10px;color:rgba(0,200,170,0.8);font-family:monospace;">📍 '+e.coords+'</div>'
         : '<div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:monospace;">'+(e.coords || e.location || '—')+'</div>';
 
-      var cardClick = hasCoords ? 'class="fly-coord-link" data-coords="'+e.coords+'"' : '';
+      var cardClick = hasCoords ? 'class="fly-coord-link" data-coords="'+e.coords+'" data-species="'+e.species+'"' : '';
 
       html += '<div '+cardClick+' style="background:#0d1a1f;border:1px solid rgba(0,200,170,0.15);border-radius:14px;padding:14px;margin-bottom:8px;'+(hasCoords ? 'cursor:pointer;' : '')+'">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
@@ -1209,8 +1209,10 @@
 
     // Use event delegation so clicks on coord links work reliably
     el.querySelectorAll('.fly-coord-link').forEach(function(link) {
-      link.addEventListener('click', function() {
-        flyToSpot(this.getAttribute('data-coords'));
+      link.addEventListener('click', function(e) {
+        // Don't trigger if delete button was clicked
+        if (e.target.tagName === 'BUTTON') return;
+        flyToSpot(this.getAttribute('data-coords'), this.getAttribute('data-species'));
       });
     });
   }
@@ -1222,8 +1224,9 @@
   }
 
   // Google Earth fly-to popup
-  function flyToSpot(coords) {
+  function flyToSpot(coords, species) {
     document.getElementById('flyCoords').textContent = coords;
+    document.getElementById('flyLabel').textContent = species || 'Catch';
     document.getElementById('flyPopup').style.display = 'flex';
   }
 
@@ -1233,14 +1236,14 @@
 
   function confirmFlyTo() {
     var coords = document.getElementById('flyCoords').textContent;
-    // Parse "28.92360° N, 82.63840° W" into decimal lat/lon
+    var label = document.getElementById('flyLabel').textContent;
     var parts = coords.replace(/°/g,'').split(',');
     var latParts = parts[0].trim().split(' ');
     var lonParts = parts[1].trim().split(' ');
     var lat = parseFloat(latParts[0]) * (latParts[1] === 'S' ? -1 : 1);
     var lon = parseFloat(lonParts[0]) * (lonParts[1] === 'W' ? -1 : 1);
     closeFlyPopup();
-    window.location.href = 'googleearth://?ll=' + lat + ',' + lon + '&z=16';
+    window.location.href = 'googleearth://?ll=' + lat + ',' + lon + '&z=16&q=' + encodeURIComponent(label) + '&t=h';
   }
 
   // Init log on open
@@ -1262,6 +1265,7 @@
     <div class="fly-popup-icon">🌍</div>
     <div class="fly-popup-title">Fly here in Google Earth?</div>
     <div class="fly-popup-coords" id="flyCoords"></div>
+    <span id="flyLabel" style="display:none;"></span>
     <button class="fly-popup-yes" onclick="confirmFlyTo()">🛩️ Open Google Earth</button>
     <button class="fly-popup-no" onclick="closeFlyPopup()">Cancel</button>
   </div>
